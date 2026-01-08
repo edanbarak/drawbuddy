@@ -58,8 +58,8 @@ const App: React.FC = () => {
   const activeLesson = useMemo(() => {
     if (!activeSubject) return null;
     
-    // Check predefined lessons first
-    const predefined = activeSubject.versions[selectedDifficulty] as Lesson;
+    // Explicitly select the version based on current difficulty
+    const predefined = activeSubject.versions[selectedDifficulty];
     if (predefined && predefined.steps && predefined.steps.length > 0) return predefined;
 
     // Check dynamically generated cache
@@ -79,7 +79,7 @@ const App: React.FC = () => {
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Create a ${stepCount}-step drawing tutorial for a ${subjectName} at ${difficulty} level.`,
+        contents: `Create a ${stepCount}-step drawing tutorial for a ${subjectName} at ${difficulty} level. Show each step cumulative.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -91,9 +91,11 @@ const App: React.FC = () => {
                   type: Type.OBJECT,
                   properties: {
                     instruction: { type: Type.STRING },
-                    svgContent: { type: Type.STRING }
+                    svgContent: { type: Type.STRING },
+                    prevSvgContent: { type: Type.STRING, description: "All SVG elements from previous steps" },
+                    newSvgContent: { type: Type.STRING, description: "SVG elements for ONLY this step" }
                   },
-                  required: ["instruction", "svgContent"]
+                  required: ["instruction", "svgContent", "prevSvgContent", "newSvgContent"]
                 }
               }
             },
@@ -105,11 +107,19 @@ const App: React.FC = () => {
       const data = JSON.parse(response.text || '{}');
       const newLesson: Lesson = {
         id: `gen-${subject.id}-${difficulty}`,
-        steps: data.steps.map((s: any, i: number) => ({
-          id: `step-${i}`,
-          instructionKey: s.instruction,
-          guideImage: `data:image/svg+xml;utf8,${encodeURIComponent(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${s.svgContent}</svg>`)}`
-        }))
+        steps: data.steps.map((s: any, i: number) => {
+          const content = `
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <g stroke="#cbd5e1" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${s.prevSvgContent || ''}</g>
+              <g stroke="#3b82f6" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">${s.newSvgContent || s.svgContent}</g>
+            </svg>
+          `;
+          return {
+            id: `step-${i}`,
+            instructionKey: s.instruction,
+            guideImage: `data:image/svg+xml;utf8,${encodeURIComponent(content.trim())}`
+          };
+        })
       };
 
       setDynamicLessons(prev => ({
@@ -153,7 +163,7 @@ const App: React.FC = () => {
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Create a step-by-step drawing tutorial for: ${customPrompt}. Level: ${selectedDifficulty}. Language: ${langLabel}. Provide ${stepCount} steps.`,
+        contents: `Create a step-by-step drawing tutorial for: ${customPrompt}. Level: ${selectedDifficulty}. Language: ${langLabel}. Provide ${stepCount} steps. Highlight current step in blue.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -167,9 +177,10 @@ const App: React.FC = () => {
                   type: Type.OBJECT,
                   properties: {
                     instruction: { type: Type.STRING },
-                    svgContent: { type: Type.STRING }
+                    prevSvg: { type: Type.STRING },
+                    currSvg: { type: Type.STRING }
                   },
-                  required: ["instruction", "svgContent"]
+                  required: ["instruction", "prevSvg", "currSvg"]
                 }
               }
             },
@@ -193,11 +204,19 @@ const App: React.FC = () => {
 
       const newLesson: Lesson = {
         id: `custom-lesson-${Date.now()}`,
-        steps: data.steps.map((s: any, i: number) => ({
-          id: `step-${i}`,
-          instructionKey: s.instruction,
-          guideImage: `data:image/svg+xml;utf8,${encodeURIComponent(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${s.svgContent}</svg>`)}`
-        }))
+        steps: data.steps.map((s: any, i: number) => {
+          const content = `
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <g stroke="#cbd5e1" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${s.prevSvg || ''}</g>
+              <g stroke="#3b82f6" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">${s.currSvg}</g>
+            </svg>
+          `;
+          return {
+            id: `step-${i}`,
+            instructionKey: s.instruction,
+            guideImage: `data:image/svg+xml;utf8,${encodeURIComponent(content.trim())}`
+          };
+        })
       };
 
       setDynamicLessons(prev => ({
@@ -315,7 +334,7 @@ const App: React.FC = () => {
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 placeholder={getT('customPlaceholder')}
-                className="w-full text-2xl p-6 rounded-2xl bg-blue-50 border-2 border-transparent focus:border-blue-400 outline-none mb-6 text-center text-slate-900 font-bold"
+                className="w-full text-2xl p-6 rounded-2xl bg-blue-50 border-2 border-transparent focus:border-blue-400 outline-none mb-6 text-center text-slate-900 font-bold placeholder-slate-400"
               />
               <div className="flex gap-4">
                 <button onClick={() => setIsCustomInputVisible(false)} className="flex-1 py-5 rounded-2xl font-bold text-gray-500 bg-gray-100 hover:bg-gray-200">
@@ -387,9 +406,14 @@ const App: React.FC = () => {
 
             <div className="flex-1 relative bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white">
               <DrawingBoard ref={canvasRef} languageDir={activeLangDir} />
+              
+              {/* EXTRA LARGE GUIDE CONTAINER: w-64 h-64 for absolute clarity */}
               <div onClick={() => setIsGuideEnlarged(!isGuideEnlarged)}
-                className={`absolute top-6 ${activeLangDir === 'rtl' ? 'right-6' : 'left-6'} transition-all duration-300 cursor-zoom-in z-20 ${isGuideEnlarged ? 'w-64 h-64 scale-110' : 'w-24 h-24'} bg-white rounded-2xl border-4 border-blue-200 shadow-xl p-2 group`}>
-                <img src={activeLesson.steps[currentStepIndex].guideImage} alt="guide" className="w-full h-full object-contain rounded-lg" />
+                className={`absolute top-6 ${activeLangDir === 'rtl' ? 'right-6' : 'left-6'} transition-all duration-300 cursor-zoom-in z-20 ${isGuideEnlarged ? 'w-[500px] h-[500px] scale-100' : 'w-64 h-64'} bg-white rounded-3xl border-4 border-blue-200 shadow-xl p-3 group`}>
+                <img src={activeLesson.steps[currentStepIndex].guideImage} alt="guide" className="w-full h-full object-contain rounded-xl" />
+                {!isGuideEnlarged && (
+                  <div className="absolute inset-0 bg-blue-500/5 group-hover:bg-transparent transition-colors rounded-3xl pointer-events-none" />
+                )}
               </div>
 
               <div className="absolute inset-y-0 left-0 right-0 pointer-events-none flex justify-between items-center px-4">
@@ -464,7 +488,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="pt-8 mt-6">
-              <button onClick={() => setShowSettings(false)} className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-6 rounded-3xl text-2xl shadow-xl transition-all active:scale-95">
+              <button onClick={() => { setShowSettings(false); setActiveSubject(null); setCurrentStepIndex(0); }} className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-6 rounded-3xl text-2xl shadow-xl transition-all active:scale-95">
                 {getT('saveSettings')}
               </button>
             </div>
