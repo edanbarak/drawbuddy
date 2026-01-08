@@ -1,11 +1,11 @@
 
 import React, { useState, useRef, useMemo } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import DrawingBoard from './components/DrawingBoard';
 import Sidebar from './components/Sidebar';
 import FeedbackOverlay from './components/FeedbackOverlay';
-import { Lesson, Difficulty } from './types';
-import { initialLessons } from './constants';
+import { DrawingSubject, Lesson, Difficulty } from './types';
+import { subjects as initialSubjects } from './constants';
 
 const ART_STYLES = [
   { id: 'realistic', label: 'מציאותי', icon: '📸', prompt: 'a realistic, high-quality 3D material render' },
@@ -22,7 +22,7 @@ const DIFFICULTY_LEVELS: { id: Difficulty; label: string; icon: string; descript
 
 const App: React.FC = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null);
-  const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [activeSubject, setActiveSubject] = useState<DrawingSubject | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [feedback, setFeedback] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -32,23 +32,125 @@ const App: React.FC = () => {
   const [isImproving, setIsImproving] = useState(false);
   const [improvedImageUrl, setImprovedImageUrl] = useState<string | null>(null);
   
+  // Custom tutorial states
+  const [isCustomInputVisible, setIsCustomInputVisible] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [isGeneratingTutorial, setIsGeneratingTutorial] = useState(false);
+  const [customSubjects, setCustomSubjects] = useState<DrawingSubject[]>([]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const filteredLessons = useMemo(() => {
-    return initialLessons.filter(l => l.difficulty === selectedDifficulty);
-  }, [selectedDifficulty]);
+  const allSubjects = useMemo(() => [...initialSubjects, ...customSubjects], [customSubjects]);
 
-  const handleLessonSelect = (lesson: Lesson) => {
-    setActiveLesson(lesson);
+  const activeLesson = useMemo(() => {
+    if (!activeSubject || !selectedDifficulty) return null;
+    return activeSubject.versions[selectedDifficulty];
+  }, [activeSubject, selectedDifficulty]);
+
+  const handleSubjectSelect = (subject: DrawingSubject) => {
+    setActiveSubject(subject);
     setCurrentStepIndex(0);
     setFeedback('');
     setShowFeedback(false);
     setImprovedImageUrl(null);
     setShowImproveOptions(false);
+    setIsCustomInputVisible(false);
+  };
+
+  const generateCustomTutorial = async () => {
+    if (!customPrompt.trim() || !selectedDifficulty) return;
+    
+    setIsGeneratingTutorial(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const stepCount = selectedDifficulty === 'beginner' ? 3 : selectedDifficulty === 'intermediate' ? 4 : 5;
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview', // Switched to Flash for faster processing
+        contents: `Create a step-by-step drawing tutorial for children. 
+        Topic: ${customPrompt}. 
+        Difficulty level: ${selectedDifficulty}. 
+        Provide exactly ${stepCount} steps. 
+        Each step must include:
+        1. A Hebrew instruction.
+        2. A simple black line-art SVG (viewBox="0 0 100 100", stroke="black", fill="none", stroke-width="2").
+        IMPORTANT: The SVG for each step must include all lines from previous steps so it builds up cumulativeley. Use only simple shapes like <circle>, <rect>, <path>, <ellipse>.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              emoji: { type: Type.STRING },
+              steps: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    instruction: { type: Type.STRING },
+                    svgContent: { type: Type.STRING, description: "The inner SVG elements only (no <svg> tag)" }
+                  },
+                  required: ["instruction", "svgContent"]
+                }
+              }
+            },
+            required: ["title", "emoji", "steps"]
+          }
+        }
+      });
+
+      const responseText = response.text;
+      if (!responseText) throw new Error("Empty response from AI");
+      
+      const data = JSON.parse(responseText.trim());
+      
+      if (!data.steps || !Array.isArray(data.steps) || data.steps.length === 0) {
+        throw new Error("Invalid tutorial structure");
+      }
+
+      const newSubject: DrawingSubject = {
+        id: `custom-${Date.now()}`,
+        title: data.title || customPrompt,
+        icon: data.emoji || '✨',
+        versions: {
+          [selectedDifficulty]: {
+            id: `lesson-${Date.now()}`,
+            steps: data.steps.map((s: any, i: number) => ({
+              id: `step-${i}`,
+              instruction: s.instruction,
+              guideImage: `data:image/svg+xml;base64,${btoa(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${s.svgContent}</svg>`)}`
+            }))
+          },
+          // Populate other versions as empty shells to maintain type safety
+          beginner: selectedDifficulty === 'beginner' ? { id: '', steps: [] } : { id: 'empty', steps: [] },
+          intermediate: selectedDifficulty === 'intermediate' ? { id: '', steps: [] } : { id: 'empty', steps: [] },
+          advanced: selectedDifficulty === 'advanced' ? { id: '', steps: [] } : { id: 'empty', steps: [] }
+        }
+      };
+      
+      // Ensure the newly created version is correctly placed
+      newSubject.versions[selectedDifficulty] = {
+        id: `lesson-${Date.now()}`,
+        steps: data.steps.map((s: any, i: number) => ({
+          id: `step-${i}`,
+          instruction: s.instruction,
+          guideImage: `data:image/svg+xml;base64,${btoa(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${s.svgContent}</svg>`)}`
+        }))
+      };
+
+      setCustomSubjects(prev => [newSubject, ...prev]);
+      handleSubjectSelect(newSubject);
+      setCustomPrompt('');
+    } catch (error) {
+      console.error("Tutorial Generation Error:", error);
+      alert("אופס! הקסם נכשל או לקח יותר מדי זמן. נסו לתאר משהו פשוט יותר או נסו שוב.");
+    } finally {
+      setIsGeneratingTutorial(false);
+    }
   };
 
   const getGeminiFeedback = async () => {
-    if (!canvasRef.current || !activeLesson) return;
+    if (!canvasRef.current || !activeLesson || !activeSubject) return;
 
     setIsAnalyzing(true);
     const canvas = canvasRef.current;
@@ -57,8 +159,9 @@ const App: React.FC = () => {
     const currentStep = activeLesson.steps[currentStepIndex];
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-      const prompt = `אתה מורה לציור לילדים. הילד מצייר את השלב: "${currentStep.instruction}".
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const systemInstruction = `אתה מורה לציור לילדים. הילד מצייר ${activeSubject.title} ברמת ${selectedDifficulty === 'beginner' ? 'מתחיל' : selectedDifficulty === 'intermediate' ? 'בינוני' : 'מתקדם'}. 
+      השלב הנוכחי הוא: "${currentStep.instruction}".
       תסתכל על הציור שלו ותן משוב קצר (עד 2 משפטים), מעודד ומאוד חיובי בעברית. 
       אם הוא הצליח, תגיד לו לעבור לשלב הבא. אם יש מה לשפר, תן טיפ קטן אחד בטון חברי.`;
 
@@ -67,8 +170,11 @@ const App: React.FC = () => {
         contents: {
           parts: [
             { inlineData: { mimeType: 'image/png', data: base64Image } },
-            { text: prompt }
+            { text: "אנא נתח את הציור שלי ותן משוב חיובי." }
           ]
+        },
+        config: {
+          systemInstruction: systemInstruction
         }
       });
 
@@ -85,7 +191,7 @@ const App: React.FC = () => {
   };
 
   const handleImproveImage = async (stylePrompt: string) => {
-    if (!canvasRef.current || !activeLesson) return;
+    if (!canvasRef.current || !activeSubject) return;
 
     setIsImproving(true);
     setShowImproveOptions(false);
@@ -94,9 +200,9 @@ const App: React.FC = () => {
     const base64Image = canvas.toDataURL('image/png').split(',')[1];
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `Task: Artistic Transformation of a child's sketch.
-      Attached is a child's line drawing of a ${activeLesson.title}.
+      Attached is a child's line drawing of a ${activeSubject.title}.
       
       CRITICAL INSTRUCTIONS:
       1. STRICT FIDELITY: Maintain the exact composition, pose, and structure of the original lines. Do not re-interpret the subject's shape.
@@ -149,12 +255,13 @@ const App: React.FC = () => {
     <div className="flex flex-col md:flex-row h-screen w-full bg-blue-50 overflow-hidden">
       {selectedDifficulty && (
         <Sidebar 
-          lessons={filteredLessons} 
-          onSelect={handleLessonSelect} 
-          activeId={activeLesson?.id} 
+          subjects={allSubjects} 
+          onSelect={handleSubjectSelect} 
+          activeId={activeSubject?.id} 
           onBack={() => {
             setSelectedDifficulty(null);
-            setActiveLesson(null);
+            setActiveSubject(null);
+            setIsCustomInputVisible(false);
           }}
         />
       )}
@@ -177,13 +284,44 @@ const App: React.FC = () => {
                     {level.icon}
                   </div>
                   <h3 className="text-2xl font-black text-gray-800 mb-2">{level.label}</h3>
-                  <p className="text-gray-500 font-medium">{level.description}</p>
+                  <p className="text-gray-500 font-medium text-center">{level.description}</p>
                 </button>
               ))}
             </div>
           </div>
-        ) : !activeLesson ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+        ) : isCustomInputVisible ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-2xl mx-auto">
+            <div className="text-7xl mb-6 animate-pulse">🪄</div>
+            <h2 className="text-4xl font-black text-blue-900 mb-4">מה תרצו ללמוד לצייר?</h2>
+            <p className="text-xl text-gray-600 mb-8">תאר בכתב כל דבר שעולה על דעתך, וצייר-חבר יבנה לך מדריך!</p>
+            
+            <div className="w-full bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-blue-100">
+              <input 
+                type="text" 
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder="למשל: חללית עם חתול אסטרונאוט..."
+                className="w-full text-2xl p-6 rounded-2xl bg-blue-50 border-2 border-transparent focus:border-blue-400 outline-none mb-6 text-right"
+              />
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setIsCustomInputVisible(false)}
+                  className="flex-1 py-5 rounded-2xl font-bold text-gray-500 bg-gray-100 hover:bg-gray-200"
+                >
+                  ביטול
+                </button>
+                <button 
+                  onClick={generateCustomTutorial}
+                  disabled={isGeneratingTutorial || !customPrompt.trim()}
+                  className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 text-xl"
+                >
+                  {isGeneratingTutorial ? 'יוצר קסמים... 🎩' : 'צור מדריך! ✨'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : !activeSubject || !activeLesson ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 overflow-y-auto">
             <button 
               onClick={() => setSelectedDifficulty(null)}
               className="absolute top-8 right-8 text-gray-400 font-bold hover:text-blue-600 transition-colors flex items-center gap-2"
@@ -193,16 +331,27 @@ const App: React.FC = () => {
             </button>
             <div className="text-6xl mb-6">✨</div>
             <h1 className="text-4xl font-extrabold text-blue-700 mb-4">מעולה! בחרתם רמת {DIFFICULTY_LEVELS.find(l => l.id === selectedDifficulty)?.label}</h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-md">עכשיו בחרו מהרשימה מה תרצו לצייר היום</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full max-w-xl">
-               {filteredLessons.map(l => (
+            <p className="text-xl text-gray-600 mb-8 max-w-md">עכשיו בחרו מהרשימה או צרו מדריך חדש!</p>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 w-full max-w-5xl">
+               {/* Magic Creation Card */}
+               <button 
+                onClick={() => setIsCustomInputVisible(true)}
+                className="bg-gradient-to-br from-purple-500 to-blue-600 p-8 rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-2 group text-white border-b-8 border-blue-800"
+               >
+                 <span className="text-6xl block mb-4 group-hover:rotate-12 transition-transform">🪄</span>
+                 <span className="text-2xl font-black">משהו אחר?</span>
+                 <p className="text-sm opacity-90 mt-2 font-bold">צרו מדריך קסם אישי</p>
+               </button>
+
+               {allSubjects.map(s => (
                  <button 
-                  key={l.id} 
-                  onClick={() => handleLessonSelect(l)}
-                  className="bg-white p-6 rounded-3xl shadow-md hover:shadow-xl transition-all border-b-4 border-transparent hover:border-blue-500 transform hover:-translate-y-1"
+                  key={s.id} 
+                  onClick={() => handleSubjectSelect(s)}
+                  className="bg-white p-6 rounded-[2.5rem] shadow-md hover:shadow-xl transition-all border-b-8 border-transparent hover:border-blue-400 transform hover:-translate-y-1 flex flex-col items-center justify-center"
                  >
-                   <span className="text-5xl block mb-2">{l.icon}</span>
-                   <span className="font-bold text-gray-800">{l.title}</span>
+                   <span className="text-6xl block mb-4">{s.icon}</span>
+                   <span className="text-xl font-black text-gray-800">{s.title}</span>
                  </button>
                ))}
             </div>
@@ -213,7 +362,7 @@ const App: React.FC = () => {
             <div className="bg-white rounded-3xl p-4 shadow-sm mb-4 border-b-4 border-blue-100 flex flex-col items-center">
               <div className="w-full flex justify-between items-center px-4 mb-2">
                 <button 
-                  onClick={() => setActiveLesson(null)} 
+                  onClick={() => setActiveSubject(null)} 
                   className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-bold"
                 >
                   ✕ סגור ציור
@@ -410,6 +559,18 @@ const App: React.FC = () => {
           <div className="text-8xl animate-bounce mb-8">🔮</div>
           <h2 className="text-3xl font-black text-purple-900 animate-pulse">מפעיל קסמים על הציור שלך...</h2>
           <p className="text-xl text-purple-600 mt-4 font-bold">זה ייקח רק רגע!</p>
+        </div>
+      )}
+
+      {/* Loading Overlay for Tutorial Generation */}
+      {isGeneratingTutorial && (
+        <div className="fixed inset-0 bg-blue-600/90 backdrop-blur-xl flex flex-col items-center justify-center z-[100] text-white">
+          <div className="relative">
+            <div className="text-9xl animate-pulse">🎩</div>
+            <div className="text-5xl absolute -top-4 -right-4 animate-bounce">✨</div>
+          </div>
+          <h2 className="text-4xl font-black mt-8">החברים הציוריים בונים לך מדריך...</h2>
+          <p className="text-xl mt-4 opacity-80">אנחנו מציירים את השלבים במיוחד בשבילך!</p>
         </div>
       )}
 

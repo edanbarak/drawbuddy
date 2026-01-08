@@ -9,8 +9,12 @@ export interface Step {
 
 export interface Lesson {
   id: string;
+  steps: Step[];
+}
+
+export interface DrawingSubject {
+  id: string;
   title: string;
   icon: string;
-  difficulty: Difficulty;
-  steps: Step[];
+  versions: Record<Difficulty, Lesson>;
 }
