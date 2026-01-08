@@ -1,7 +1,5 @@
 {
   "name": "DrawBuddy - Learn to Draw",
   "description": "An interactive drawing app for kids that uses Gemini to provide feedback, step-by-step guidance, and creative inspiration.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

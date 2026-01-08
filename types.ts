@@ -1,9 +1,10 @@
 
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
+export type LanguageCode = 'en' | 'he' | 'es' | 'ar' | 'zh' | 'hi' | 'fr' | 'de' | 'ja';
 
 export interface Step {
   id: string;
-  instruction: string;
+  instructionKey: string; // Using keys for translations
   guideImage: string;
 }
 
@@ -14,7 +15,7 @@ export interface Lesson {
 
 export interface DrawingSubject {
   id: string;
-  title: string;
+  titleKey: string;
   icon: string;
   versions: Record<Difficulty, Lesson>;
 }

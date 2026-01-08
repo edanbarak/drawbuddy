@@ -1,7 +1,11 @@
 
 import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 
-const DrawingBoard = forwardRef<HTMLCanvasElement>((props, ref) => {
+interface DrawingBoardProps {
+  languageDir: 'rtl' | 'ltr';
+}
+
+const DrawingBoard = forwardRef<HTMLCanvasElement, DrawingBoardProps>(({ languageDir }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState('#1e293b');
@@ -12,137 +16,66 @@ const DrawingBoard = forwardRef<HTMLCanvasElement>((props, ref) => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const resizeCanvas = () => {
       const displayWidth = canvas.clientWidth;
       const displayHeight = canvas.clientHeight;
-
       if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
-        // Save content to avoid losing drawing on resize
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = canvas.width;
         tempCanvas.height = canvas.height;
         const tempCtx = tempCanvas.getContext('2d');
-        if (tempCtx && canvas.width > 0 && canvas.height > 0) {
-          tempCtx.drawImage(canvas, 0, 0);
-        }
-
+        if (tempCtx && canvas.width > 0 && canvas.height > 0) tempCtx.drawImage(canvas, 0, 0);
         canvas.width = displayWidth;
         canvas.height = displayHeight;
-
-        // Re-set context properties after width/height change as they get reset
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        
-        // Restore content, scaled to fit if the window changed
-        if (tempCanvas.width > 0 && tempCanvas.height > 0) {
-          ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, canvas.width, canvas.height);
-        }
+        if (tempCanvas.width > 0 && tempCanvas.height > 0) ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, canvas.width, canvas.height);
       }
     };
-
-    // Initial resize to sync CSS and internal resolution
     resizeCanvas();
-
-    // Use ResizeObserver for more reliable updates than just window resize events
-    const resizeObserver = new ResizeObserver(() => {
-      resizeCanvas();
-    });
+    const resizeObserver = new ResizeObserver(resizeCanvas);
     resizeObserver.observe(canvas);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
+    return () => resizeObserver.disconnect();
   }, []);
 
-  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDrawing(true);
-    draw(e);
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-    const ctx = canvasRef.current?.getContext('2d');
-    ctx?.beginPath();
-  };
-
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => { setIsDrawing(true); draw(e); };
+  const stopDrawing = () => { setIsDrawing(false); canvasRef.current?.getContext('2d')?.beginPath(); };
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing) return;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx || !canvas) return;
-
     const rect = canvas.getBoundingClientRect();
     let clientX, clientY;
-
     if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-      // Prevent scrolling while drawing on touch devices
+      clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
       if (e.cancelable) e.preventDefault();
     } else {
-      clientX = (e as React.MouseEvent).clientX;
-      clientY = (e as React.MouseEvent).clientY;
+      clientX = (e as React.MouseEvent).clientX; clientY = (e as React.MouseEvent).clientY;
     }
-
-    // Map screen coordinates to the internal canvas resolution precisely
     const x = (clientX - rect.left) * (canvas.width / rect.width);
     const y = (clientY - rect.top) * (canvas.height / rect.height);
-
-    ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = color;
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+    ctx.lineWidth = lineWidth; ctx.strokeStyle = color;
+    ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
   };
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (ctx && canvas) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
+    if (canvas) canvas.getContext('2d')?.clearRect(0,0,canvas.width, canvas.height);
   };
 
   return (
     <div className="w-full h-full relative cursor-crosshair overflow-hidden">
-      <canvas
-        ref={canvasRef}
-        onMouseDown={startDrawing}
-        onMouseUp={stopDrawing}
-        onMouseMove={draw}
-        onMouseLeave={stopDrawing}
-        onTouchStart={startDrawing}
-        onTouchEnd={stopDrawing}
-        onTouchMove={draw}
-        className="w-full h-full block bg-white"
-        style={{ touchAction: 'none' }}
-      />
-      
-      {/* Canvas Controls */}
-      <div className="absolute top-4 right-4 flex flex-col gap-3 p-3 bg-white/90 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100">
-        <div className="flex flex-col gap-2">
-          {['#1e293b', '#ef4444', '#3b82f6', '#10b981', '#f59e0b'].map(c => (
-            <button 
-              key={c}
-              onClick={() => setColor(c)}
-              className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c ? 'border-blue-500 scale-125' : 'border-transparent'}`}
-              style={{ backgroundColor: c }}
-            />
-          ))}
-        </div>
-        <div className="h-px bg-gray-200 my-1"></div>
-        <button 
-          onClick={clearCanvas}
-          className="text-gray-500 hover:text-red-500 p-1 transition-colors"
-          title="מחק הכל"
-        >
-          <span className="text-xl">🗑️</span>
-        </button>
+      <canvas ref={canvasRef} onMouseDown={startDrawing} onMouseUp={stopDrawing} onMouseMove={draw} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchEnd={stopDrawing} onTouchMove={draw} className="w-full h-full block bg-white" style={{ touchAction: 'none' }} />
+      <div className={`absolute top-4 ${languageDir === 'rtl' ? 'left-4' : 'right-4'} flex flex-col gap-3 p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-blue-100 z-40`}>
+        {['#1e293b', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#ec4899'].map(c => (
+          <button key={c} onClick={() => setColor(c)} className={`w-9 h-9 rounded-full border-2 transition-all transform hover:scale-110 ${color === c ? 'border-blue-500 scale-125' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+        ))}
+        <div className="h-px bg-gray-200 w-full my-1"></div>
+        <button onClick={clearCanvas} className="text-2xl hover:scale-125 transition-transform" title="Clear">🗑️</button>
       </div>
     </div>
   );
