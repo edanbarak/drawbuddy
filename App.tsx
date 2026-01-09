@@ -254,7 +254,7 @@ const App: React.FC = () => {
         <Sidebar subjects={allSubjects} onSelect={handleSubjectSelect} activeId={activeSubject?.id} onBack={() => setActiveSubject(null)} translations={t} languageDir={activeLangDir} onSettings={() => setShowSettings(true)} />
       </div>
 
-      <main className="flex-1 flex flex-col relative overflow-hidden">
+      <main className="flex-1 flex flex-col relative overflow-hidden h-full">
         {isCustomInputVisible ? (
           <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 text-center max-w-2xl mx-auto overflow-y-auto">
             <div className="text-6xl md:text-7xl mb-6 animate-pulse">🪄</div>
@@ -268,7 +268,7 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : !activeSubject ? (
-          <div className="flex-1 flex flex-col relative overflow-y-auto p-4 sm:p-10 custom-scrollbar">
+          <div className="flex-1 flex flex-col relative overflow-y-auto p-4 sm:p-10 custom-scrollbar pb-24 md:pb-10">
             <div className="flex flex-col lg:flex-row justify-between items-center mb-8 md:mb-12 gap-6">
               <div className="text-center lg:text-left">
                 <h1 className="text-4xl md:text-5xl font-extrabold text-blue-700 mb-2">{getT('welcome')}</h1>
@@ -304,32 +304,34 @@ const App: React.FC = () => {
         ) : activeLesson ? (
           <>
             {/* Header for Active Drawing - Compact on Mobile */}
-            <div className="bg-white/80 backdrop-blur-md sticky top-0 md:static p-3 md:p-4 shadow-sm border-b-4 border-blue-100 flex flex-col items-center z-50">
-              <div className="w-full flex justify-between items-center px-2 md:px-4 mb-2">
-                <button onClick={() => setActiveSubject(null)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 w-10 h-10 md:w-auto md:px-4 md:py-2 rounded-xl text-sm font-bold flex items-center justify-center transition-colors">
+            <div className="bg-white/80 backdrop-blur-md sticky top-0 md:static p-2 md:p-4 shadow-sm border-b-4 border-blue-100 flex flex-col items-center z-50">
+              <div className="w-full flex justify-between items-center px-2 md:px-4 mb-1 md:mb-2">
+                <button onClick={() => setActiveSubject(null)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 w-8 h-8 md:w-auto md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center transition-colors">
                   <span className="md:mr-1">✕</span> <span className="hidden md:inline">{getT('close')}</span>
                 </button>
                 <div className="flex gap-1 md:gap-2 max-w-[50%] overflow-hidden">
-                  {activeLesson.steps.map((_, i) => (<div key={i} className={`h-1.5 md:h-2 flex-1 min-w-[12px] md:w-8 rounded-full transition-colors ${i === currentStepIndex ? 'bg-blue-500' : i < currentStepIndex ? 'bg-green-400' : 'bg-gray-200'}`} />))}
+                  {activeLesson.steps.map((_, i) => (<div key={i} className={`h-1 md:h-2 flex-1 min-w-[8px] md:w-8 rounded-full transition-colors ${i === currentStepIndex ? 'bg-blue-500' : i < currentStepIndex ? 'bg-green-400' : 'bg-gray-200'}`} />))}
                 </div>
-                <div className="text-blue-600 font-bold bg-blue-50 px-2 py-1 md:px-3 rounded-lg text-xs md:text-sm whitespace-nowrap">
+                <div className="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 md:px-3 rounded-lg text-[10px] md:text-sm whitespace-nowrap">
                   {getT('stepXofY').replace('{x}', (currentStepIndex + 1).toString()).replace('{y}', activeLesson.steps.length.toString())}
                 </div>
               </div>
-              <h2 className="text-lg md:text-2xl font-bold text-blue-900 text-center px-4 line-clamp-1">
+              <h2 className="text-sm md:text-2xl font-bold text-blue-900 text-center px-4 line-clamp-1">
                 {getT(activeLesson.steps[currentStepIndex].instructionKey)}
               </h2>
             </div>
 
             {/* Drawing Board and Guide Area */}
-            <div className="flex-1 relative flex flex-col md:block">
-              <div className="flex-1 md:absolute md:inset-0 bg-white rounded-b-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden md:border-8 border-white">
-                <DrawingBoard ref={canvasRef} languageDir={activeLangDir} />
+            <div className="flex-1 relative flex flex-col h-full overflow-hidden">
+              <div className="flex-1 bg-white rounded-b-[1.5rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden md:border-8 border-white relative">
+                <div className="h-full pb-32 md:pb-0">
+                   <DrawingBoard ref={canvasRef} languageDir={activeLangDir} />
+                </div>
                 
                 {/* Guide Thumbnail - Responsive sizing */}
-                <div onClick={() => setIsGuideEnlarged(!isGuideEnlarged)} className={`absolute top-4 ${activeLangDir === 'rtl' ? 'right-4' : 'left-4'} transition-all duration-300 cursor-zoom-in z-20 ${isGuideEnlarged ? 'fixed inset-4 md:inset-20 md:w-[600px] md:h-[600px] m-auto scale-100' : 'w-32 h-32 md:w-64 md:h-64'} bg-white rounded-2xl md:rounded-3xl border-4 border-blue-200 shadow-2xl p-2 group`}>
-                  <img src={activeLesson.steps[currentStepIndex].guideImage} alt="guide" className="w-full h-full object-contain rounded-xl" />
-                  {!isGuideEnlarged && (<div className="absolute inset-0 bg-blue-500/5 group-hover:bg-transparent transition-colors rounded-3xl pointer-events-none" />)}
+                <div onClick={() => setIsGuideEnlarged(!isGuideEnlarged)} className={`absolute top-2 ${activeLangDir === 'rtl' ? 'right-2' : 'left-2'} md:top-4 ${activeLangDir === 'rtl' ? 'md:right-4' : 'md:left-4'} transition-all duration-300 cursor-zoom-in z-20 ${isGuideEnlarged ? 'fixed inset-4 md:inset-20 md:w-[600px] md:h-[600px] m-auto scale-100' : 'w-24 h-24 md:w-64 md:h-64'} bg-white rounded-xl md:rounded-3xl border-2 md:border-4 border-blue-200 shadow-2xl p-1 md:p-2 group`}>
+                  <img src={activeLesson.steps[currentStepIndex].guideImage} alt="guide" className="w-full h-full object-contain rounded-lg md:rounded-xl" />
+                  {!isGuideEnlarged && (<div className="absolute inset-0 bg-blue-500/5 group-hover:bg-transparent transition-colors rounded-xl md:rounded-3xl pointer-events-none" />)}
                   {isGuideEnlarged && (
                     <button className="absolute top-2 right-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg font-bold">✕</button>
                   )}
@@ -345,29 +347,29 @@ const App: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Control Bar - Floating at bottom */}
-                <div className="absolute bottom-4 md:bottom-8 left-0 right-0 flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6 px-4 z-30 pointer-events-none">
-                  <div className="flex gap-3 pointer-events-auto w-full md:w-auto">
-                    <button onClick={getGeminiFeedback} disabled={isAnalyzing} className={`flex-1 md:flex-none px-6 md:px-10 py-3 md:py-4 rounded-full font-black text-sm md:text-xl shadow-lg active:translate-y-1 transition-all flex items-center justify-center gap-3 ${isAnalyzing ? 'bg-gray-400 text-white' : 'bg-yellow-400 hover:bg-yellow-300 text-blue-900 border-b-4 border-yellow-600'}`}>
-                      {isAnalyzing ? <div className="animate-spin rounded-full h-5 w-5 border-3 border-white border-t-transparent"></div> : getT('showMe')}
+                {/* Control Bar - Floating at bottom - Enhanced for Mobile Visibility */}
+                <div className="absolute bottom-2 md:bottom-8 left-0 right-0 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6 px-4 z-30 pointer-events-none">
+                  <div className="flex gap-2 pointer-events-auto w-full md:w-auto overflow-x-auto no-scrollbar pb-1">
+                    <button onClick={getGeminiFeedback} disabled={isAnalyzing} className={`flex-1 md:flex-none px-4 md:px-10 py-3 md:py-4 rounded-full font-black text-xs md:text-xl shadow-lg active:translate-y-1 transition-all flex items-center justify-center gap-2 md:gap-3 whitespace-nowrap ${isAnalyzing ? 'bg-gray-400 text-white' : 'bg-yellow-400 hover:bg-yellow-300 text-blue-900 border-b-4 border-yellow-600'}`}>
+                      {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div> : getT('showMe')}
                     </button>
                     
                     {/* Mobile Only: Prev/Next Buttons in control bar */}
-                    <button onClick={prevStep} disabled={currentStepIndex === 0} className={`md:hidden p-3 rounded-full shadow-lg transition-all active:scale-90 ${currentStepIndex === 0 ? 'bg-gray-100 text-gray-300' : 'bg-white text-blue-600 border-b-4 border-gray-200'}`}>
-                      <span className="text-xl">{activeLangDir === 'rtl' ? '➔' : '⬅'}</span>
+                    <button onClick={prevStep} disabled={currentStepIndex === 0} className={`md:hidden p-3 rounded-full shadow-lg transition-all active:scale-90 bg-white ${currentStepIndex === 0 ? 'text-gray-200' : 'text-blue-600 border-b-4 border-gray-200'}`}>
+                      <span className="text-lg">{activeLangDir === 'rtl' ? '➔' : '⬅'}</span>
                     </button>
-                    <button onClick={nextStep} disabled={currentStepIndex === activeLesson.steps.length - 1} className={`md:hidden p-3 rounded-full shadow-lg transition-all active:scale-90 ${currentStepIndex === activeLesson.steps.length - 1 ? 'bg-gray-100 text-gray-300' : 'bg-white text-blue-600 border-b-4 border-gray-200'}`}>
-                      <span className="text-xl">{activeLangDir === 'rtl' ? '⬅' : '➔'}</span>
+                    <button onClick={nextStep} disabled={currentStepIndex === activeLesson.steps.length - 1} className={`md:hidden p-3 rounded-full shadow-lg transition-all active:scale-90 bg-white ${currentStepIndex === activeLesson.steps.length - 1 ? 'text-gray-200' : 'text-blue-600 border-b-4 border-gray-200'}`}>
+                      <span className="text-lg">{activeLangDir === 'rtl' ? '⬅' : '➔'}</span>
                     </button>
                   </div>
 
                   <div className="pointer-events-auto w-full md:w-auto">
                     {currentStepIndex < activeLesson.steps.length - 1 ? (
-                      <button onClick={nextStep} className="w-full bg-green-500 hover:bg-green-600 text-white px-8 md:px-12 py-3 md:py-4 rounded-full font-bold shadow-lg active:translate-y-1 transition-all text-sm md:text-lg border-b-4 border-green-700">
+                      <button onClick={nextStep} className="w-full bg-green-500 hover:bg-green-600 text-white px-6 md:px-12 py-3 md:py-4 rounded-full font-bold shadow-lg active:translate-y-1 transition-all text-xs md:text-lg border-b-4 border-green-700 whitespace-nowrap">
                         {getT('nextStep')}
                       </button>
                     ) : (
-                      <button onClick={() => setShowImproveOptions(true)} disabled={isImproving} className="w-full bg-purple-600 hover:bg-purple-500 text-white px-8 md:px-12 py-3 md:py-4 rounded-full font-bold shadow-lg active:translate-y-1 transition-all text-sm md:text-lg flex items-center justify-center gap-2 border-b-4 border-purple-800">
+                      <button onClick={() => setShowImproveOptions(true)} disabled={isImproving} className="w-full bg-purple-600 hover:bg-purple-500 text-white px-6 md:px-12 py-3 md:py-4 rounded-full font-bold shadow-lg active:translate-y-1 transition-all text-xs md:text-lg flex items-center justify-center gap-2 border-b-4 border-purple-800 whitespace-nowrap">
                         {isImproving ? getT('improving') : getT('magicImprove')}
                       </button>
                     )}

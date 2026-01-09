@@ -58,9 +58,46 @@ const DrawingBoard = forwardRef<HTMLCanvasElement, DrawingBoardProps>(({ languag
     return () => window.removeEventListener('resize', resizeCanvas);
   }, [lineWidth, color]);
 
+  const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    }
+
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+  };
+
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDrawing(true);
-    draw(e);
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!ctx || !canvas) return;
+
+    const { x, y } = getCoordinates(e);
+
+    // Draw a "dot" immediately on start
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, lineWidth / 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Reset path for potential dragging
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+
+    // Prevent scrolling/default behavior
+    if ('touches' in e && e.cancelable) e.preventDefault();
   };
 
   const stopDrawing = () => {
@@ -74,21 +111,10 @@ const DrawingBoard = forwardRef<HTMLCanvasElement, DrawingBoardProps>(({ languag
     const ctx = canvas?.getContext('2d');
     if (!ctx || !canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
+    const { x, y } = getCoordinates(e);
 
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-      // Prevent scrolling while drawing
-      if (e.cancelable) e.preventDefault();
-    } else {
-      clientX = (e as React.MouseEvent).clientX;
-      clientY = (e as React.MouseEvent).clientY;
-    }
-
-    const x = (clientX - rect.left) * (canvas.width / rect.width);
-    const y = (clientY - rect.top) * (canvas.height / rect.height);
+    // Prevent scrolling while drawing
+    if ('touches' in e && e.cancelable) e.preventDefault();
 
     ctx.lineWidth = lineWidth;
     ctx.strokeStyle = color;
