@@ -32,12 +32,19 @@ const createSteps = (idPrefix: string, parts: string[], instructions: string[]):
 };
 
 // --- SUN ---
+// Fixed Beginner Sun: Step 1 (Circle), Step 2 (Rays), Step 3 (Smiley Face)
 const sunB = { id: 'sun-b', steps: createSteps('sun-b', 
-  ['<circle cx="50" cy="50" r="25"/>', '<path d="M50 10V20 M50 80V90 M10 50H20 M80 50H90"/>', '<path d="M42 45Q50 48 58 45 M42 60Q50 68 58 60"/>'],
-  ['Draw a big circle', 'Add 4 long rays', 'Draw a happy face']) };
+  [
+    '<circle cx="50" cy="50" r="25"/>', 
+    '<path d="M50 10V22 M50 78V90 M10 50H22 M78 50H90 M22 22L30 30 M70 70L78 78 M22 78L30 70 M70 22L78 30"/>', 
+    '<circle cx="42" cy="45" r="2" fill="currentColor" stroke="none"/><circle cx="58" cy="45" r="2" fill="currentColor" stroke="none"/><path d="M40 60Q50 70 60 60"/>'
+  ],
+  ['Draw a big circle', 'Add the sunny rays', 'Draw a happy smiley face']) };
+
 const sunI = { id: 'sun-i', steps: createSteps('sun-i',
   ['<circle cx="50" cy="50" r="25"/>', '<path d="M50 10V20 M50 80V90 M10 50H20 M80 50H90"/>', '<path d="M22 22L28 28 M72 72L78 78 M22 78L28 72 M72 28L78 22"/>', '<circle cx="40" cy="45" r="3" fill="currentColor"/><circle cx="60" cy="45" r="3" fill="currentColor"/>', '<path d="M35 60Q50 75 65 60"/>'],
   ['Draw a sun circle', 'Add 4 main rays', 'Add 4 diagonal rays', 'Draw big eyes', 'Add a wide smile']) };
+
 const sunA = { id: 'sun-a', steps: createSteps('sun-a',
   ['<circle cx="50" cy="50" r="25"/>', '<path d="M50 5Q55 15 50 25 M50 75Q55 85 50 95 M5 50Q15 45 25 50 M75 50Q85 45 95 50"/>', '<path d="M20 20Q30 25 35 35 M65 65Q70 75 80 80 M20 80Q25 70 35 65 M65 35Q75 30 80 20"/>', '<circle cx="43" cy="45" r="5"/><circle cx="57" cy="45" r="5"/>', '<circle cx="44" cy="44" r="2" fill="currentColor"/><circle cx="58" cy="44" r="2" fill="currentColor"/>', '<path d="M38 62Q50 72 62 62"/><path d="M48 52Q50 55 52 52"/>', '<circle cx="32" cy="55" r="3" fill="#ffcccc" stroke="none"/><circle cx="68" cy="55" r="3" fill="#ffcccc" stroke="none"/>'],
   ['Draw the sun body', 'Add wavy main rays', 'Fill in smaller rays', 'Draw outer eyes', 'Add pupils for sparkle', 'Draw nose and mouth', 'Add rosy cheeks']) };
