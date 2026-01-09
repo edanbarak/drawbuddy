@@ -14,6 +14,12 @@ const DrawingBoard = forwardRef<HTMLCanvasElement, DrawingBoardProps>(({ languag
 
   useImperativeHandle(ref, () => canvasRef.current!);
 
+  const COLORS = [
+    '#1e293b', '#ef4444', '#f97316', '#f59e0b', '#facc15', '#a3e635',
+    '#22c55e', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
+    '#d946ef', '#ec4899', '#78350f', '#71717a', '#cbd5e1', '#ffffff'
+  ];
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -146,21 +152,21 @@ const DrawingBoard = forwardRef<HTMLCanvasElement, DrawingBoardProps>(({ languag
         style={{ touchAction: 'none' }} 
       />
       
-      {/* Floating Toolbar - Adaptive positioning */}
-      <div className={`absolute top-1/2 -translate-y-1/2 ${languageDir === 'rtl' ? 'left-2 md:left-4' : 'right-2 md:right-4'} flex flex-col gap-2 md:gap-3 p-2 md:p-3 bg-white/80 backdrop-blur-xl rounded-full shadow-2xl border border-white/50 z-40`}>
-        {['#1e293b', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#ec4899'].map(c => (
+      {/* Floating Toolbar - Expanded and Scrollable */}
+      <div className={`absolute top-1/2 -translate-y-1/2 ${languageDir === 'rtl' ? 'left-2 md:left-4' : 'right-2 md:right-4'} flex flex-col gap-1.5 md:gap-2 p-2 md:p-3 bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/50 z-40 max-h-[85vh] overflow-y-auto custom-scrollbar`}>
+        {COLORS.map(c => (
           <button 
             key={c} 
             onClick={() => setColor(c)} 
-            className={`w-8 h-8 md:w-10 md:h-10 rounded-full border-4 transition-all transform hover:scale-110 active:scale-90 ${color === c ? 'border-white ring-2 ring-blue-400 scale-110' : 'border-transparent opacity-80'}`} 
+            className={`w-7 h-7 md:w-9 md:h-9 rounded-full border-2 transition-all transform hover:scale-110 active:scale-90 ${color === c ? 'border-blue-500 ring-2 ring-blue-100 scale-110' : 'border-gray-100 opacity-90'}`} 
             style={{ backgroundColor: c }} 
           />
         ))}
         <div className="h-px bg-gray-200 w-full my-1"></div>
         <button 
           onClick={clearCanvas} 
-          className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-xl md:text-2xl hover:scale-125 transition-transform active:rotate-12" 
-          title="Clear"
+          className="w-7 h-7 md:w-9 md:h-9 flex items-center justify-center text-lg md:text-xl hover:bg-red-50 text-red-500 rounded-full transition-colors"
+          title="Clear Canvas"
         >
           🗑️
         </button>
@@ -169,4 +175,5 @@ const DrawingBoard = forwardRef<HTMLCanvasElement, DrawingBoardProps>(({ languag
   );
 });
 
+// Added default export to fix "Module has no default export" error
 export default DrawingBoard;

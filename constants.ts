@@ -32,8 +32,13 @@ const createSteps = (idPrefix: string, parts: string[], instructions: string[]):
 
 // --- 1. SUN (Easiest) ---
 const sunB = { id: 'sun-b', steps: createSteps('sun-b', 
-  ['<circle cx="50" cy="50" r="25"/>', '<path d="M50 10V22 M50 78V90 M10 50H22 M78 50H90 M22 22L30 30 M70 70L78 78 M22 78L30 70 M70 22L78 30"/>', '<circle cx="42" cy="45" r="2" fill="currentColor" stroke="none"/><circle cx="58" cy="45" r="2" fill="currentColor" stroke="none"/><path d="M40 60Q50 70 60 60"/>'],
-  ['step_sun_circle', 'step_sun_rays', 'step_sun_face']) };
+  [
+    '<circle cx="50" cy="50" r="25"/>', 
+    '<path d="M50 10V22 M50 78V90 M10 50H22 M78 50H90 M22 22L30 30 M70 70L78 78 M22 78L30 70 M70 22L78 30"/>', 
+    '<circle cx="42" cy="45" r="2" fill="currentColor" stroke="none"/><circle cx="58" cy="45" r="2" fill="currentColor" stroke="none"/><path d="M40 60Q50 70 60 60"/>'
+  ],
+  ['step_sun_circle', 'step_sun_rays', 'step_sun_face']) 
+};
 const sunI = { id: 'sun-i', steps: createSteps('sun-i',
   ['<circle cx="50" cy="50" r="25"/>', '<path d="M50 10V20 M50 80V90 M10 50H20 M80 50H90"/>', '<path d="M22 22L28 28 M72 72L78 78 M22 78L28 72 M72 28L78 22"/>', '<circle cx="40" cy="45" r="3" fill="currentColor"/><circle cx="60" cy="45" r="3" fill="currentColor"/>', '<path d="M35 60Q50 75 65 60"/>'],
   ['step_sun_circle', 'step_sun_rays_main', 'step_sun_rays_diag', 'step_sun_eyes', 'step_sun_smile']) };
