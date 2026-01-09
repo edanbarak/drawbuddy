@@ -74,7 +74,7 @@ const App: React.FC = () => {
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Create a ${stepCount}-step drawing tutorial for a ${subjectName} at ${difficulty} level. Show each step cumulative.`,
+        contents: `Create a ${stepCount}-step drawing tutorial for a ${subjectName} at ${difficulty} level. IMPORTANT: Provide the "instruction" text for each step in ${langLabel}. Show each step cumulative.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -156,7 +156,7 @@ const App: React.FC = () => {
       const langLabel = languages.find(l => l.code === selectedLanguage)?.label || 'English';
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Create a step-by-step drawing tutorial for: ${customPrompt}. Level: ${selectedDifficulty}. Language: ${langLabel}. Provide ${stepCount} steps. Highlight current step in blue.`,
+        contents: `Create a step-by-step drawing tutorial for: ${customPrompt}. Level: ${selectedDifficulty}. Language: ${langLabel}. IMPORTANT: All "instruction" and the "title" MUST be in ${langLabel}. Provide ${stepCount} steps. Highlight current step in blue.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
